@@ -1,12 +1,12 @@
 // Server.cpp : This file contains the 'main' function. Program execution begins and ends there.
-//
+// xfgddgfddhdhfd
 #define _CRT_SECURE_NO_WARNINGS
 #include <string>
 #include "stdafx.h"
 #include "afxsock.h"
 #include "Server.h"
 
-
+#define asd dsdas
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
