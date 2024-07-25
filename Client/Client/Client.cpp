@@ -24,6 +24,10 @@ bool compareStr(char* msg, string s) {
 	return true;
 }
 
+void f(int signum) {
+	exit(EXIT_SUCCESS);
+}
+
 int main()
 {
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -45,6 +49,7 @@ int main()
 		/* *************************** */
 		/*     TODO: Input nickname    */
 		/* *************************** */
+		signal(SIGINT, f);
 		printf("Enter your nickname length: ");
 		int name_len;
 		scanf("%d", &name_len);
@@ -74,21 +79,53 @@ int main()
 		/* break the connection.                                           */
 		/* *************************************************************** */
 		printf("\n");
-		bool flag = true;
+		int ch = getchar();
 		bool running = true;
+		FILE* fptr = fopen("input.txt", "r");
 		while (running) {
 			printf("Type 'install' to download file or press CTRL + C to stop the program : ");
 			int index = 0;
 			int ch;
 			while (true) {
 				ch = getchar();
-				if (flag) {
-					ch = getchar();
-					flag = false;
-				}
 				if (ch == '\n') {
 					msg[index] = '\0';
-					if (compareStr(msg, "install")) client.Send((char*)("INSTALL"), BUFLEN, 0);
+					if (compareStr(msg, "install")) {
+						// Send "INSTALL" protocol and filenames to be downloaded
+						// "END_LIST" msg is sent when there are no filenames left
+						client.Send((char*)("INSTALL"), BUFLEN, 0);
+						bool flag = false;
+						while (fgets(msg, BUFLEN, fptr)) {
+							flag = true;
+							msg[strlen(msg)] = '\0';
+							// removing \n from filename
+							for (int i = 0; i < strlen(msg); ++i) {
+								if (msg[i] == '\n') {
+									msg[i] = '\0';
+									break;
+								}
+							}
+							if (strlen(msg) == 0) continue;
+							client.Send((char*)msg, BUFLEN, 0);
+
+							char* tmp = new char[strlen(msg) + 1];
+							for (int i = 0; i < strlen(msg); ++i) tmp[i] = msg[i];
+							tmp[strlen(msg)] = '\0';
+
+							// get message protocol EXIST to know if file exists in the server
+							client.Receive((char*)msg, BUFLEN, 0);
+							if (strcmp(msg, "NON_EXIST") == 0) {
+								printf("File %s does not exist in the server\n", tmp);
+								continue;
+							}
+							printf("File %s exists in the server\n", tmp);
+						}
+						client.Send((char*)("END_LIST"), BUFLEN, 0);
+						if (!flag) {
+							printf("All files are already downloaded\n");
+							break;
+						}
+					}
 					else {
 						printf("Invalid command. Please type again!\n");
 					}
@@ -97,6 +134,7 @@ int main()
 				if (ch == -1) { // ctrl + c
 					client.Send((char*)("QUIT"), BUFLEN, 0);
 					running = false;
+					fclose(fptr);
 					break;
 				}
 				if (ch != EOF) msg[index++] = ch;
