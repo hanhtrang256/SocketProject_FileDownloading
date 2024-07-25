@@ -6,13 +6,13 @@
 #include "afxsock.h"
 #include "Server.h"
 
-#define abc abc
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
 
 using namespace std;
 
+const int abcd = 5;
 unsigned int PORT = 1234;
 const int BUFLEN = 1024;
 
