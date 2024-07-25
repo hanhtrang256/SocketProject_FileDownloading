@@ -1,12 +1,12 @@
 // Server.cpp : This file contains the 'main' function. Program execution begins and ends there.
-
+//
 #define _CRT_SECURE_NO_WARNINGS
 #include <string>
 #include "stdafx.h"
 #include "afxsock.h"
 #include "Server.h"
 
-#define abc abc
+
 #ifdef _DEBUG
 #define new DEBUG_NEW
 #endif
@@ -105,21 +105,43 @@ int main()
 
 					string s = toString(msg);
 					
-					fptr = fopen(("avail/" + s).c_str(), "r");
+					FILE* fcheck;
+					fcheck = fopen(("avail/" + s).c_str(), "rb");
 					// check if file exists in server
-					if (fptr == NULL) {
+					if (fcheck == NULL) {
 						printf("(non_exist)\n");
-						conn.Send((char*)("NON_EXIST"), BUFLEN, 0);
+						int sz = 10;
+						conn.Send((char*)&sz, sizeof(int), 0);
+						conn.Send((char*)("NON_EXIST"), 10, 0);
 						continue;
 					}
 					printf("(exist)\n");
-					conn.Send((char*)("EXIST"), BUFLEN, 0);
+					int sz = 6;
+					conn.Send((char*)&sz, sizeof(int), 0);
+					conn.Send((char*)("EXIST"), 6, 0);
 
 					// downloading file for clients
-					//while (fgets(msg, BUFLEN, fptr)) conn.Send((char*)msg, BUFLEN, 0);
-					//conn.Send((char*)"END_FILE", BUFLEN, 0);
-					
-					fclose(fptr);
+					char* buffer;
+					int file_size;
+					fseek(fcheck, 0L, SEEK_END);
+					file_size = ftell(fcheck);
+					fseek(fcheck, 0L, SEEK_SET);
+
+					printf("file size = %d\n", file_size);
+					conn.Send((char*)&file_size, sizeof(int), 0);
+
+					buffer = new char[file_size + 1];
+
+					while (fread(buffer, 1, file_size, fcheck)) {
+						buffer[file_size] = '\0';
+						printf("%s ", buffer);
+						printf("%d \n", (int)strlen(buffer));
+						conn.Send((char*)buffer, file_size, 0);
+					}
+					fclose(fcheck);
+					conn.Send((char*)"END_FILE", 9, 0);
+
+					delete[] buffer;
 				}
 			}
 		}
