@@ -28,6 +28,12 @@ void f(int signum) {
 	exit(EXIT_SUCCESS);
 }
 
+string toString(char* msg) {
+	string s = "";
+	for (int i = 0; i < strlen(msg); ++i) s += msg[i];
+	return s;
+}
+
 int main()
 {
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -113,12 +119,46 @@ int main()
 							tmp[strlen(msg)] = '\0';
 
 							// get message protocol EXIST to know if file exists in the server
-							client.Receive((char*)msg, BUFLEN, 0);
+							int sz_exist;
+							client.Receive((char*)&sz_exist, sizeof(int), 0);
+							client.Receive((char*)msg, sz_exist, 0);
 							if (strcmp(msg, "NON_EXIST") == 0) {
 								printf("File %s does not exist in the server\n", tmp);
 								continue;
 							}
 							printf("File %s exists in the server\n", tmp);
+
+							string s = toString(tmp);
+							FILE* fout = fopen(("output/" + s).c_str(), "wb");
+							if (fout == NULL) {
+								printf("Cannot create file %s\n", tmp);
+							}
+							
+							// download
+							char* buffer;
+							size_t size = 0;
+							int file_size = 0;
+							client.Receive((char*)&file_size, sizeof(int), 0);
+
+							printf("File size is %d\n", file_size);
+
+							buffer = new char[file_size + 1];
+
+							while (client.Receive(buffer, file_size, size)) {
+								if (strcmp(buffer, "END_FILE") == 0) {
+									printf("Finish downloading\n");
+									break;
+								}
+								buffer[file_size] = '\0';
+								printf("%s ", buffer);
+								int len = strlen(buffer);
+								printf("%d ", len);
+								fwrite(buffer, 1, file_size, fout);
+							}
+							fclose(fout);
+							printf("Download succeed\n");
+
+							delete[] buffer;
 						}
 						client.Send((char*)("END_LIST"), BUFLEN, 0);
 						if (!flag) {
