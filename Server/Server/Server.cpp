@@ -151,11 +151,12 @@ int main()
 
 					buffer = new char[file_size + 1];
 
-					while (fread(buffer, 1, file_size, fcheck)) {
+					while (fread((char*)buffer, 1, file_size, fcheck) == 1) {
 						buffer[file_size] = '\0';
 						printf("%s ", buffer);
 						printf("%d \n", (int)strlen(buffer));
 						conn.Send((char*)buffer, file_size, 0);
+						printf("sending\n");
 					}
 					fclose(fcheck);
 					conn.Send((char*)"END_FILE", 9, 0);
