@@ -74,7 +74,7 @@ int main()
 		while (fgets(msg, BUFLEN, fptr)) {
 			conn.Send((char*)msg, BUFLEN, 0);
 		}
-		conn.Send((char*)("END_LIST\0"), BUFLEN, 0); // protocol
+		conn.Send((char*)("END_LIST\0"), 9, 0); // protocol
 		fclose(fptr);
 
 		/* *********************************************** */
