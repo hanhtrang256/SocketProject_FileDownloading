@@ -50,7 +50,7 @@ int main()
 
 	char* msg = new char[BUFLEN];
 
-	if (client.Connect(_T("127.0.0.1"), PORT) != 0) {
+	if (client.Connect(_T("10.124.7.189"), PORT) != 0) {
 		printf("Successfully connect to the server\n");
 		/* *************************** */
 		/*     TODO: Input nickname    */
@@ -65,7 +65,7 @@ int main()
 		nickname[name_len] = '\0';
 		printf("Enter nickname: ");
 		scanf("%s", nickname);
-		client.Send((char*)nickname, BUFLEN, 0);
+		client.Send((char*)nickname, name_len, 0);
 
 		/* ******************************* */
 		/* TODO: Receive available files   */
