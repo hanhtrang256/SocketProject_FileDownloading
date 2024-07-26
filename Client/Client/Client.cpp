@@ -61,7 +61,7 @@ int main()
 		scanf("%d", &name_len);
 		client.Send(&name_len, sizeof(int), 0);
 		
-		char* nickname = new char[BUFLEN];
+		char* nickname = new char[name_len + 1];
 		nickname[name_len] = '\0';
 		printf("Enter nickname: ");
 		scanf("%s", nickname);
@@ -73,9 +73,11 @@ int main()
 		/* stop the while loop.            */
 		/* ******************************* */
 		while (true) {
-			client.Receive((char*)msg, BUFLEN, 0);
+			int sz;
+			client.Receive((char*)&sz, sizeof(int), 0);
+			client.Receive((char*)msg, sz + 1, 0);
 			if (strcmp(msg, "END_LIST\0") == 0) break;
-			printf("%s", msg);
+			printf("%s\n", msg);
 		}
 		/* **************************************************************  */
 		/* TODO: Download files or CTRL C to break connection              */
@@ -99,7 +101,9 @@ int main()
 					if (compareStr(msg, "install")) {
 						// Send "INSTALL" protocol and filenames to be downloaded
 						// "END_LIST" msg is sent when there are no filenames left
-						client.Send((char*)("INSTALL"), BUFLEN, 0);
+						int sz = strlen("INSTALL");
+						client.Send((char*)&sz, sizeof(int), 0);
+						client.Send((char*)("INSTALL"), sz + 1, 0);
 						bool flag = false;
 						while (fgets(msg, BUFLEN, fptr)) {
 							flag = true;
@@ -112,7 +116,9 @@ int main()
 								}
 							}
 							if (strlen(msg) == 0) continue;
-							client.Send((char*)msg, BUFLEN, 0);
+							int sz_filename = strlen(msg);
+							client.Send((char*)&sz_filename, sizeof(int), 0);
+							client.Send((char*)msg, sz_filename + 1, 0);
 
 							char* tmp = new char[strlen(msg) + 1];
 							for (int i = 0; i < strlen(msg); ++i) tmp[i] = msg[i];
@@ -121,7 +127,7 @@ int main()
 							// get message protocol EXIST to know if file exists in the server
 							int sz_exist;
 							client.Receive((char*)&sz_exist, sizeof(int), 0);
-							client.Receive((char*)msg, sz_exist, 0);
+							client.Receive((char*)msg, sz_exist + 1, 0);
 							if (strcmp(msg, "NON_EXIST") == 0) {
 								printf("File %s does not exist in the server\n", tmp);
 								continue;
@@ -160,7 +166,9 @@ int main()
 
 							delete[] buffer;
 						}
-						client.Send((char*)("END_LIST"), BUFLEN, 0);
+						int sz_endlist = strlen("END_LIST");
+						client.Send((char*)&sz_endlist, sizeof(int), 0);
+						client.Send((char*)("END_LIST"), sz_endlist + 1, 0);	
 						if (!flag) {
 							printf("All files are already downloaded\n");
 							break;
@@ -172,7 +180,9 @@ int main()
 					break;
 				}
 				if (ch == -1) { // ctrl + c
-					client.Send((char*)("QUIT"), BUFLEN, 0);
+					int sz_quit = strlen("QUIT");
+					client.Send((char*)&sz_quit, sizeof(int), 0);
+					client.Send((char*)("QUIT"), sz_quit + 1, 0);
 					running = false;
 					fclose(fptr);
 					break;
