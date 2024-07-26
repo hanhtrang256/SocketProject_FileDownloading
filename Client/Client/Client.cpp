@@ -159,7 +159,7 @@ int main()
 								//printf("%s ", buffer);
 								int len = strlen(buffer);
 								//printf("%d ", len);
-								fwrite(buffer, 1, file_size, fout);
+								fwrite((char*)buffer, 1, file_size, fout);
 							}
 							fclose(fout);
 							printf("Download succeed\n");
