@@ -66,22 +66,39 @@ int main()
 		/* Protocol used here is string "END_LIST" to stop when file is fully readed */
 		/* Client will stop receiving list files after seeing the message "END_LIST" */
 		/* ************************************************************************* */
-		conn.Send((char*)("Here are the available files you can download\n\0"), BUFLEN, 0);
+		int sz = strlen("Here are the available files you can download\n");
+		conn.Send((char*)&sz, sizeof(int), 0);
+		conn.Send((char*)("Here are the available files you can download\n"), sz + 1, 0);
 		
 		// read file avail.txt
 		FILE* fptr;
 		fptr = fopen("avail/avail.txt", "r");
+		
 		while (fgets(msg, BUFLEN, fptr)) {
-			conn.Send((char*)msg, BUFLEN, 0);
+			for (int i = 0; i < strlen(msg); ++i) {
+				if (msg[i] == '\n') {
+					msg[i] = '\0';
+					break;
+				}
+			}
+			printf("%s ", msg);
+			int sz = strlen(msg);
+			printf("%d\n", sz);
+			conn.Send((char*)&sz, sizeof(int), 0);
+			conn.Send((char*)msg, sz + 1, 0);
 		}
-		conn.Send((char*)("END_LIST\0"), 9, 0); // protocol
+		sz = strlen("END_LIST\0");
+		conn.Send((char*)&sz, sizeof(int), 0);
+		conn.Send((char*)("END_LIST\0"), sz + 1, 0); // protocol
 		fclose(fptr);
 
 		/* *********************************************** */
 		/* TODO: receive client's files and transfer files */
 		/* *********************************************** */
 		while (true) {
-			conn.Receive((char*)msg, BUFLEN, 0);
+			int sz; 
+			conn.Receive((char*)&sz, sizeof(int), 0);
+			conn.Receive((char*)msg, sz + 1, 0);
 			if (strcmp(msg, "QUIT") == 0) {
 				printf("Quitting\n");
 				break;
@@ -90,7 +107,9 @@ int main()
 				printf("Downloading file...\n");
 				// Getting downloading files from client
 				while (true) {
-					conn.Receive((char*)msg, BUFLEN, 0); // msg is filename
+					int sz_filename;
+					conn.Receive((char*)&sz_filename, sizeof(int), 0);
+					conn.Receive((char*)msg, sz_filename + 1, 0); // msg is filename
 					if (strcmp(msg, "END_LIST") == 0) break;
 					
 					// remove \n from filename
@@ -110,15 +129,15 @@ int main()
 					// check if file exists in server
 					if (fcheck == NULL) {
 						printf("(non_exist)\n");
-						int sz = 10;
+						int sz = strlen("NON_EXIST");
 						conn.Send((char*)&sz, sizeof(int), 0);
-						conn.Send((char*)("NON_EXIST"), 10, 0);
+						conn.Send((char*)("NON_EXIST"), sz + 1, 0);
 						continue;
 					}
 					printf("(exist)\n");
-					int sz = 6;
+					int sz = strlen("EXIST");
 					conn.Send((char*)&sz, sizeof(int), 0);
-					conn.Send((char*)("EXIST"), 6, 0);
+					conn.Send((char*)("EXIST"), sz + 1, 0);
 
 					// downloading file for clients
 					char* buffer;
