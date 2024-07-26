@@ -156,9 +156,9 @@ int main()
 									break;
 								}
 								buffer[file_size] = '\0';
-								printf("%s ", buffer);
+								//printf("%s ", buffer);
 								int len = strlen(buffer);
-								printf("%d ", len);
+								//printf("%d ", len);
 								fwrite(buffer, 1, file_size, fout);
 							}
 							fclose(fout);
