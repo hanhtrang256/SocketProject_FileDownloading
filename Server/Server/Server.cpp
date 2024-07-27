@@ -30,6 +30,22 @@ char* standard(char* msg, int len = -1) {
 	return msg;
 }
 
+void progress_bar(int bytes_sent, int file_size) {
+	int len_bar = 50;
+	float progress = (float)(bytes_sent) / (float)(file_size);
+	int pos = progress * len_bar;
+
+	printf("[");
+	for (int i = 0; i < len_bar; ++i) {
+		if (i < pos) printf("=");
+		else if (i == pos) printf(">");
+		else printf(" ");
+	}
+	printf("] %3.0f%%\r", progress * (float)100.0);
+	printf("\n");
+	fflush(stdout);
+}
+
 int main()
 {
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -59,7 +75,8 @@ int main()
 		CSocket conn;
 		server.Accept(conn);
 
-		printf("[NEW CONNECTION] A client has connected to the server!\n");
+		printf("---------------------------[NEW CONNECTION]------------------------------\n");
+		printf("A client has connected to the server!!!\n");
 
 		/* *************************** */
 		/* TODO: Get client's nickname */
@@ -81,7 +98,6 @@ int main()
 		while (fgets(avail_file, 100, f_list)) {
 			avail_file = standard(avail_file);
 			int len_filename = strlen(avail_file);
-			printf("%s %d\n", avail_file, len_filename);
 			conn.Send((char*)&len_filename, sizeof(int), 0);
 			conn.Send((char*)avail_file, len_filename, 0);
 		}
@@ -127,7 +143,8 @@ int main()
 		fclose(f_down);*/
 
 		// main process -> communicate with user
-		while (true) {
+		bool communicate = true;
+		while (communicate) {
 			// receive user's command
 			int len_cmd;
 			conn.Receive((char*)&len_cmd, sizeof(int), 0);
@@ -135,12 +152,13 @@ int main()
 			conn.Receive((char*)usercmd, len_cmd, 0);
 			usercmd = standard(usercmd, len_cmd);
 
-			printf("Client command is %s\n", usercmd);
+			printf("[COMMAND RECEIVED] Client command is %s\n", usercmd);
 			fflush(stdout);
 
 			// user wants to disconnect
 			if (strcmp(usercmd, "QUIT") == 0) {
 				printf("Quitting\n");
+				communicate = false;
 			}
 			else if (strcmp(usercmd, "INVALID_CMD") == 0) {
 				printf("Client types an invalid command\n");
@@ -156,12 +174,11 @@ int main()
 					filename = standard(filename, len_filename);
 
 					if (strcmp(filename, "SEND_ALL") == 0) {
-						printf("Client has sent all new files\n");
+						printf("All new files are sent\n\n");
 						fflush(stdout);
 						sending = false;
 					}
 					else {
-
 						printf("Client wants to install file %s\n", filename);
 						fflush(stdout);
 
@@ -200,15 +217,18 @@ int main()
 
 							int bytes_read;
 							memset(buffer, 0, BUFLEN);
+
+							long long bytes_toClient = 0; // total number of bytes have been sent to client
+							
 							while ((bytes_read = fread(buffer, 1, BUFLEN, ftrans)) > 0) {
 								int bytes_sent = 0;
 								while (bytes_sent < bytes_read) {
 									int actual_sent = conn.Send((char*)(buffer + bytes_sent), bytes_read - bytes_sent, 0);
 									bytes_sent += actual_sent;
+									bytes_toClient += actual_sent;
 								}
-								//printf("Sending %d bytes\n", bytes_sent);
 							}
-							printf("Finish downloading!!!\n");
+							printf("\nFinish downloading!!!\n\n");
 							fflush(stdout);
 							fclose(ftrans);
 						}
