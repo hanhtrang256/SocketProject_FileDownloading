@@ -89,7 +89,7 @@ int main()
 		while (true) {
 			int len_filename;
 			client.Receive((char*)&len_filename, sizeof(int), 0);
-			printf("file size is %d\n", len_filename);
+			//printf("file size is %d\n", len_filename);
 			fflush(stdout);
 			client.Receive((char*)msg, len_filename, 0);
 			msg = standard(msg, len_filename);
@@ -105,22 +105,6 @@ int main()
 		/* CTRL+C, client_socket will send the message "QUIT" to break the */
 		/* connection.                                                     */
 		/* *************************************************************** */
-
-		/*FILE* f_out = fopen("output/trc.jpg", "wb");
-
-		int file_size;
-		client.Receive((char*)&file_size, sizeof(int), 0);
-
-		char* buf = new char[file_size + 1];
-		int bytes_written = 0;
-		while (bytes_written < file_size) {
-			int bytes_received = client.Receive((char*)buf, file_size, 0);
-			printf("received %d bytes\n", bytes_received);
-			fwrite(buf, 1, bytes_received, f_out);
-			bytes_written += bytes_received;
-		}
-		delete[] buf;*/
-
 		// Set up the SIGINT handler
 		signal(SIGINT, handle_sigint);
 		FILE* fin = fopen("input.txt", "r");
@@ -141,7 +125,7 @@ int main()
 				break;
 			}
 			
-			printf("msg is %s\n", msg);
+			//printf("msg is %s\n", msg);
 
 			// handle client's command
 			// user presses ctrl + c
@@ -172,9 +156,7 @@ int main()
 					if (len_filename == 0) continue;
 
 					// Send new files to server
-					printf("New file to download is %s\n", filename); 
-					fflush(stdout);
-					printf("Len of filename is %d\n", len_filename);
+					printf("New file to download is %s (", filename); 
 					fflush(stdout);
 					client.Send((char*)&len_filename, sizeof(int), 0);
 					client.Send((char*)filename, len_filename, 0);
@@ -187,10 +169,10 @@ int main()
 					exist = standard(exist, len_exist);
 
 					if (strcmp(exist, "NON_EXIST") == 0) {
-						printf("File %s does not exist in the server\n", filename);
+						printf("does not exist in the server)\n");
 					}
 					else {
-						printf("File %s exists in the server\n", filename);
+						printf("exists in the server)\n");
 
 						// now we receive data for file from server
 						string s = toString(filename);
@@ -199,16 +181,42 @@ int main()
 						long long file_size;
 						client.Receive((char*)&file_size, sizeof(long long), 0);
 						printf("File size is %lld\n", file_size);
-						// receive data
+
+						// receiving data from server
 						memset(buffer, 0, BUFLEN);
-						int bytes_written = 0;
+
+						// Loading the progress bar first
+						printf("Installing file %s: [", filename);
+						fflush(stdout);
+						int len_bar = 60;
+						int index_bar = 0;
+						for (int i = 0; i < len_bar; ++i) {
+							printf("-");
+							fflush(stdout);
+						}
+						printf("]");
+
+						// bring the cursor to the starting point of loading bar
+						printf("\r"); fflush(stdout);
+						printf("Installing file %s: [", filename); fflush(stdout);
+
+						
+						long long bytes_written = 0;
 						while (bytes_written < file_size) {
 							int bytes_received = client.Receive((char*)buffer, BUFLEN, 0);
-							printf("Received %d bytes\n", bytes_received);
+							//printf("Received %d bytes\n", bytes_received);
 							fwrite(buffer, 1, bytes_received, fout);
 							bytes_written += bytes_received;
+							float progress = (float)(bytes_written) / (float)(file_size);
+							int pos = len_bar * progress;
+							while (index_bar < pos) {
+								printf("*");
+								fflush(stdout);
+								Sleep(1);
+								++index_bar;
+							}
 						}
-						printf("Finish writing file\n");
+						printf("\nFinish downloading\n");
 						fflush(stdout);
 						fclose(fout);
 					}
