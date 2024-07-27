@@ -22,6 +22,14 @@ string toString(char* msg) {
 	return s;
 }
 
+char* standard(char* msg, int len = -1) {
+	int index = strlen(msg) - 1;
+	if (len != -1) index = len - 1;
+	while (msg[index] == '\n' || msg[index] == ' ') --index;
+	msg[index + 1] = '\0';
+	return msg;
+}
+
 int main()
 {
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
@@ -45,131 +53,178 @@ int main()
 	}
 
 	char* msg = new char[BUFLEN];
+	char buffer[BUFLEN] = { 0 };
 
 	while (true) {
 		CSocket conn;
 		server.Accept(conn);
 
-		/* *************************** */
-		/* TODO: get client's nickname */
-		/* *************************** */
-		int name_len;
-		conn.Receive(&name_len, sizeof(int), 0);
-		char* nickname = new char[name_len + 1];
-		nickname[name_len] = '\0';
-		conn.Receive((char*)nickname, name_len, 0);
-		printf("[NEW CONNECTION] Connects with %s\n", nickname);
-		
+		printf("[NEW CONNECTION] A client has connected to the server!\n");
 
-		/* ************************************************************************* */
-		/*               TODO: give client's list of available files                 */
-		/* Protocol used here is string "END_LIST" to stop when file is fully readed */
-		/* Client will stop receiving list files after seeing the message "END_LIST" */
-		/* ************************************************************************* */
-		int sz = strlen("Here are the available files you can download\n");
-		conn.Send((char*)&sz, sizeof(int), 0);
-		conn.Send((char*)("Here are the available files you can download\n"), sz + 1, 0);
-		
-		// read file avail.txt
-		FILE* fptr;
-		fptr = fopen("avail/avail.txt", "r");
-		
-		while (fgets(msg, BUFLEN, fptr)) {
-			for (int i = 0; i < strlen(msg); ++i) {
-				if (msg[i] == '\n') {
-					msg[i] = '\0';
-					break;
-				}
-			}
-			printf("%s ", msg);
-			int sz = strlen(msg);
-			printf("%d\n", sz);
-			conn.Send((char*)&sz, sizeof(int), 0);
-			conn.Send((char*)msg, sz + 1, 0);
+		/* *************************** */
+		/* TODO: Get client's nickname */
+		/* *************************** */
+		int len_nickname;
+		char* nickname;
+		conn.Receive((char*)&len_nickname, sizeof(int), 0);
+		nickname = new char[len_nickname + 1];
+		conn.Receive((char*)nickname, len_nickname, 0);
+		nickname = standard(nickname, len_nickname);
+		printf("Client's nickname is %s\n", nickname);
+
+		/* ****************************************** */
+		/* TODO: Give clients list of available files */
+		/* ****************************************** */
+		printf("Give clients list of available files\n");
+		FILE* f_list = fopen("avail/avail.txt", "r");
+		char* avail_file = new char[100];
+		while (fgets(avail_file, 100, f_list)) {
+			avail_file = standard(avail_file);
+			int len_filename = strlen(avail_file);
+			printf("%s %d\n", avail_file, len_filename);
+			conn.Send((char*)&len_filename, sizeof(int), 0);
+			conn.Send((char*)avail_file, len_filename, 0);
 		}
-		sz = strlen("END_LIST\0");
-		conn.Send((char*)&sz, sizeof(int), 0);
-		conn.Send((char*)("END_LIST\0"), sz + 1, 0); // protocol
-		fclose(fptr);
+		int len_endlist = strlen("END_LIST");
+		conn.Send((char*)&len_endlist, sizeof(int), 0);
+		conn.Send((char*)("END_LIST"), len_endlist, 0);
+		fclose(f_list);
 
 		/* *********************************************** */
 		/* TODO: receive client's files and transfer files */
 		/* *********************************************** */
-		while (true) {
-			int sz; 
-			conn.Receive((char*)&sz, sizeof(int), 0);
-			conn.Receive((char*)msg, sz + 1, 0);
-			if (strcmp(msg, "QUIT") == 0) {
-				printf("Quitting\n");
-				break;
-			}
-			if (strcmp(msg, "INSTALL") == 0) {
-				printf("Downloading file...\n");
-				// Getting downloading files from client
-				while (true) {
-					int sz_filename;
-					conn.Receive((char*)&sz_filename, sizeof(int), 0);
-					conn.Receive((char*)msg, sz_filename + 1, 0); // msg is filename
-					if (strcmp(msg, "END_LIST") == 0) break;
-					
-					// remove \n from filename
-					for (int i = 0; i < strlen(msg); ++i) {
-						if (msg[i] == '\n') {
-							msg[i] = '\0';
-							break;
-						}
-					}
 
-					printf("Client %s wants to download file %s ", nickname, msg);
+		/*FILE* f_down = fopen("avail/trc.jpg", "rb");
+		if (f_down == NULL) {
+			printf("Cannot open file\n");
+			fflush(stdout);
+		}
 
-					string s = toString(msg);
-					
-					FILE* fcheck;
-					fcheck = fopen(("avail/" + s).c_str(), "rb");
-					// check if file exists in server
-					if (fcheck == NULL) {
-						printf("(non_exist)\n");
-						int sz = strlen("NON_EXIST");
-						conn.Send((char*)&sz, sizeof(int), 0);
-						conn.Send((char*)("NON_EXIST"), sz + 1, 0);
-						continue;
-					}
-					printf("(exist)\n");
-					int sz = strlen("EXIST");
-					conn.Send((char*)&sz, sizeof(int), 0);
-					conn.Send((char*)("EXIST"), sz + 1, 0);
+		int file_size;
+		fseek(f_down, 0L, SEEK_END);
+		file_size = ftell(f_down);
+		fseek(f_down, 0L, SEEK_SET);
+		printf("File size is %d\n", file_size);
 
-					// downloading file for clients
-					char* buffer;
-					int file_size;
-					fseek(fcheck, 0L, SEEK_END);
-					file_size = ftell(fcheck);
-					fseek(fcheck, 0L, SEEK_SET);
+		conn.Send((char*)&file_size, sizeof(int), 0);
 
-					printf("file size = %d\n", file_size);
-					conn.Send((char*)&file_size, sizeof(int), 0);
-
-					buffer = new char[file_size + 1];
-
-					while (fread((char*)buffer, 1, file_size, fcheck) == 1) {
-						buffer[file_size] = '\0';
-						printf("%s ", buffer);
-						printf("%d \n", (int)strlen(buffer));
-						conn.Send((char*)buffer, file_size, 0);
-						printf("sending\n");
-					}
-					fclose(fcheck);
-					conn.Send((char*)"END_FILE", 9, 0);
-
-					delete[] buffer;
+		int bytes_read;
+		while ((bytes_read = fread(buffer, 1, BUFLEN, f_down)) > 0) {
+			printf("read %d bytes\n", bytes_read);
+			int bytes_sent = 0;
+			while (bytes_sent < bytes_read) {
+				int actual_sent = conn.Send((char*)(buffer + bytes_sent), bytes_read - bytes_sent, 0);
+				if (actual_sent < 0) {
+					printf("Failed\n");
+					exit(EXIT_FAILURE);
 				}
+				bytes_sent += actual_sent;
 			}
 		}
 
+		printf("Finished\n");
+		fflush(stdout);
+		fclose(f_down);*/
+
+		// main process -> communicate with user
+		while (true) {
+			// receive user's command
+			int len_cmd;
+			conn.Receive((char*)&len_cmd, sizeof(int), 0);
+			char* usercmd = new char[len_cmd + 1];
+			conn.Receive((char*)usercmd, len_cmd, 0);
+			usercmd = standard(usercmd, len_cmd);
+
+			printf("Client command is %s\n", usercmd);
+			fflush(stdout);
+
+			// user wants to disconnect
+			if (strcmp(usercmd, "QUIT") == 0) {
+				printf("Quitting\n");
+			}
+			else if (strcmp(usercmd, "INVALID_CMD") == 0) {
+				printf("Client types an invalid command\n");
+			}
+			else if (strcmp(usercmd, "INSTALL") == 0) {
+				// receving user's new files or SEND_ALL protocol to stop
+				bool sending = true;
+				while (sending) {
+					int len_filename;
+					conn.Receive((char*)&len_filename, sizeof(int), 0);
+					char* filename = new char[len_filename + 1];
+					conn.Receive((char*)filename, len_filename, 0);
+					filename = standard(filename, len_filename);
+
+					if (strcmp(filename, "SEND_ALL") == 0) {
+						printf("Client has sent all new files\n");
+						fflush(stdout);
+						sending = false;
+					}
+					else {
+
+						printf("Client wants to install file %s\n", filename);
+						fflush(stdout);
+
+						// check if file exist in server
+						string s = toString(filename);
+						FILE* ftrans = fopen((("avail/") + s).c_str(), "rb");
+
+						// file does not exist
+						if (ftrans == NULL) {
+							printf("File %s does not exist in server\n", filename);
+							fflush(stdout);
+							int len_nonexist = strlen("NON_EXIST");
+							conn.Send((char*)&len_nonexist, sizeof(int), 0);
+							conn.Send((char*)("NON_EXIST"), len_nonexist, 0);
+							// then continue receiving other files from client
+						}
+						else {
+							printf("File %s exists in server\n", filename);
+							fflush(stdout);
+							int len_exist = strlen("EXIST");
+							conn.Send((char*)&len_exist, sizeof(int), 0);
+							conn.Send((char*)("EXIST"), len_exist, 0);
+
+							// now we transfer data in file to client
+
+							long long file_size;
+							fseek(ftrans, 0L, SEEK_END);
+							file_size = ftell(ftrans);
+							fseek(ftrans, 0L, SEEK_SET);
+
+							printf("File size is %lld\n", file_size);
+							fflush(stdout);
+
+							// send file size to client to write file
+							conn.Send((char*)&file_size, sizeof(long long), 0);
+
+							int bytes_read;
+							memset(buffer, 0, BUFLEN);
+							while ((bytes_read = fread(buffer, 1, BUFLEN, ftrans)) > 0) {
+								int bytes_sent = 0;
+								while (bytes_sent < bytes_read) {
+									int actual_sent = conn.Send((char*)(buffer + bytes_sent), bytes_read - bytes_sent, 0);
+									bytes_sent += actual_sent;
+								}
+								//printf("Sending %d bytes\n", bytes_sent);
+							}
+							printf("Finish downloading!!!\n");
+							fflush(stdout);
+							fclose(ftrans);
+						}
+					}
+					delete[] filename;
+				}
+			}
+
+			delete[] usercmd;
+		}
+
 		conn.Close();
-		printf("Disconnect with client %s\n", nickname);
+		printf("Disconnect with client %s!!!\n", nickname);
+		delete[] nickname;
 	}
 
 	server.Close();
-    return 0;
+	return 0;
 }
