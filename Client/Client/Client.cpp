@@ -8,6 +8,7 @@
 #include "afxsock.h"
 #include "Client.h"
 #include "signal.h"
+#include "errno.h"
 #include <string>
 
 #ifdef _DEBUG
@@ -24,8 +25,10 @@ bool compareStr(char* msg, string s) {
 	return true;
 }
 
-void f(int signum) {
-	exit(EXIT_SUCCESS);
+volatile sig_atomic_t running = 1;
+
+void handle_sigint(int signum) {
+	running = 0;
 }
 
 string toString(char* msg) {
@@ -34,12 +37,21 @@ string toString(char* msg) {
 	return s;
 }
 
+char* standard(char* msg, int len = -1) {
+	int index = strlen(msg) - 1;
+	if (len != -1) index = len - 1;
+	while (msg[index] == '\n' || msg[index] == ' ') --index;
+	msg[index + 1] = '\0';
+	return msg;
+}
+
 int main()
 {
 	if (!AfxWinInit(::GetModuleHandle(NULL), NULL, ::GetCommandLine(), 0))
 	{
 		// TODO: change error code to suit your needs
 		printf("Fatal Error: MFC initialization failed\n");
+		fflush(stdout);
 		return 1;
 	}
 
@@ -49,147 +61,181 @@ int main()
 	client.Create();
 
 	char* msg = new char[BUFLEN];
+	char buffer[BUFLEN] = { 0 };
 
-	if (client.Connect(_T("10.124.7.189"), PORT) != 0) {
+	if (client.Connect(_T("127.0.0.1"), PORT) != 0) {
 		printf("Successfully connect to the server\n");
+		fflush(stdout);
 		/* *************************** */
 		/*     TODO: Input nickname    */
 		/* *************************** */
-		signal(SIGINT, f);
 		printf("Enter your nickname length: ");
 		int name_len;
 		scanf("%d", &name_len);
 		client.Send(&name_len, sizeof(int), 0);
-		
+
 		char* nickname = new char[name_len + 1];
-		nickname[name_len] = '\0';
 		printf("Enter nickname: ");
+		fflush(stdout);
 		scanf("%s", nickname);
+		nickname = standard(nickname, name_len);
 		client.Send((char*)nickname, name_len, 0);
 
-		/* ******************************* */
-		/* TODO: Receive available files   */
-		/* Protocol: message "END_LIST" to */
-		/* stop the while loop.            */
-		/* ******************************* */
+		/* ************************************* */
+		/* TODO: Receive list of available files */
+		/* ************************************* */
+		printf("Here are list of available files to download\n");
+		int cnt = 0;
 		while (true) {
-			int sz;
-			client.Receive((char*)&sz, sizeof(int), 0);
-			client.Receive((char*)msg, sz + 1, 0);
-			if (strcmp(msg, "END_LIST\0") == 0) break;
+			int len_filename;
+			client.Receive((char*)&len_filename, sizeof(int), 0);
+			printf("file size is %d\n", len_filename);
+			fflush(stdout);
+			client.Receive((char*)msg, len_filename, 0);
+			msg = standard(msg, len_filename);
+			if (strcmp(msg, "END_LIST") == 0) break;
 			printf("%s\n", msg);
+			fflush(stdout);
 		}
+
 		/* **************************************************************  */
 		/* TODO: Download files or CTRL C to break connection              */
 		/* Protocol: when client type install, client_socket will send     */
 		/* message "INSTALL" to server to download files. When users press */
-		/* CTRL+C, client_socket will send to server the message "QUIT" to */
-		/* break the connection.                                           */
+		/* CTRL+C, client_socket will send the message "QUIT" to break the */
+		/* connection.                                                     */
 		/* *************************************************************** */
-		printf("\n");
-		int ch = getchar();
-		bool running = true;
-		FILE* fptr = fopen("input.txt", "r");
+
+		/*FILE* f_out = fopen("output/trc.jpg", "wb");
+
+		int file_size;
+		client.Receive((char*)&file_size, sizeof(int), 0);
+
+		char* buf = new char[file_size + 1];
+		int bytes_written = 0;
+		while (bytes_written < file_size) {
+			int bytes_received = client.Receive((char*)buf, file_size, 0);
+			printf("received %d bytes\n", bytes_received);
+			fwrite(buf, 1, bytes_received, f_out);
+			bytes_written += bytes_received;
+		}
+		delete[] buf;*/
+
+		// Set up the SIGINT handler
+		signal(SIGINT, handle_sigint);
+		FILE* fin = fopen("input.txt", "r");
+
 		while (running) {
-			printf("Type 'install' to download file or press CTRL + C to stop the program : ");
-			int index = 0;
-			int ch;
+			// reading command
+			printf("Command: ");
+			fflush(stdout);
 			while (true) {
-				ch = getchar();
-				if (ch == '\n') {
-					msg[index] = '\0';
-					if (compareStr(msg, "install")) {
-						// Send "INSTALL" protocol and filenames to be downloaded
-						// "END_LIST" msg is sent when there are no filenames left
-						int sz = strlen("INSTALL");
-						client.Send((char*)&sz, sizeof(int), 0);
-						client.Send((char*)("INSTALL"), sz + 1, 0);
-						bool flag = false;
-						while (fgets(msg, BUFLEN, fptr)) {
-							flag = true;
-							msg[strlen(msg)] = '\0';
-							// removing \n from filename
-							for (int i = 0; i < strlen(msg); ++i) {
-								if (msg[i] == '\n') {
-									msg[i] = '\0';
-									break;
-								}
-							}
-							if (strlen(msg) == 0) continue;
-							int sz_filename = strlen(msg);
-							client.Send((char*)&sz_filename, sizeof(int), 0);
-							client.Send((char*)msg, sz_filename + 1, 0);
+				if (fgets(msg, 100, stdin) == NULL) {
+					if (!running) break;
+					running = 0;
+					break;
+				}
 
-							char* tmp = new char[strlen(msg) + 1];
-							for (int i = 0; i < strlen(msg); ++i) tmp[i] = msg[i];
-							tmp[strlen(msg)] = '\0';
+				msg = standard(msg);
+				if (strlen(msg) == 0) continue;
+				break;
+			}
+			
+			printf("msg is %s\n", msg);
 
-							// get message protocol EXIST to know if file exists in the server
-							int sz_exist;
-							client.Receive((char*)&sz_exist, sizeof(int), 0);
-							client.Receive((char*)msg, sz_exist + 1, 0);
-							if (strcmp(msg, "NON_EXIST") == 0) {
-								printf("File %s does not exist in the server\n", tmp);
-								continue;
-							}
-							printf("File %s exists in the server\n", tmp);
+			// handle client's command
+			// user presses ctrl + c
+			if (!running) {
+				printf("You choose to quit\n");
+				fflush(stdout);
+				int len_quit = strlen("QUIT");
+				client.Send((char*)&len_quit, sizeof(int), 0);
+				client.Send((char*)("QUIT"), len_quit, 0);
+				continue;
+			}
 
-							string s = toString(tmp);
-							FILE* fout = fopen(("output/" + s).c_str(), "wb");
-							if (fout == NULL) {
-								printf("Cannot create file %s\n", tmp);
-							}
-							
-							// download
-							char* buffer;
-							size_t size = 0;
-							int file_size = 0;
-							client.Receive((char*)&file_size, sizeof(int), 0);
+			// user types install
+			if (strcmp(msg, "install") == 0) {
+				printf("You choose to install\n");
+				int len_install = strlen("INSTALL");
+				client.Send((char*)&len_install, sizeof(int), 0);
+				client.Send((char*)("INSTALL"), len_install, 0);
 
-							printf("File size is %d\n", file_size);
+				// read input.txt to send new files to server
+				char* filename = new char[100];
+				bool have_new_files = false;
+				while (fgets(filename, 100, fin)) {
+					have_new_files = true;
+					filename = standard(filename);
+					int len_filename = strlen(filename);
 
-							buffer = new char[file_size + 1];
+					if (len_filename == 0) continue;
 
-							while (client.Receive(buffer, file_size, size)) {
-								if (strcmp(buffer, "END_FILE") == 0) {
-									printf("Finish downloading\n");
-									break;
-								}
-								buffer[file_size] = '\0';
-								//printf("%s ", buffer);
-								int len = strlen(buffer);
-								//printf("%d ", len);
-								fwrite((char*)buffer, 1, file_size, fout);
-							}
-							fclose(fout);
-							printf("Download succeed\n");
+					// Send new files to server
+					printf("New file to download is %s\n", filename); 
+					fflush(stdout);
+					printf("Len of filename is %d\n", len_filename);
+					fflush(stdout);
+					client.Send((char*)&len_filename, sizeof(int), 0);
+					client.Send((char*)filename, len_filename, 0);
 
-							delete[] buffer;
-						}
-						int sz_endlist = strlen("END_LIST");
-						client.Send((char*)&sz_endlist, sizeof(int), 0);
-						client.Send((char*)("END_LIST"), sz_endlist + 1, 0);	
-						if (!flag) {
-							printf("All files are already downloaded\n");
-							break;
-						}
+					// receive EXIST protocol from server to know if file exists
+					int len_exist;
+					client.Receive((char*)&len_exist, sizeof(int), 0);
+					char* exist = new char[len_exist + 1];
+					client.Receive((char*)exist, len_exist, 0);
+					exist = standard(exist, len_exist);
+
+					if (strcmp(exist, "NON_EXIST") == 0) {
+						printf("File %s does not exist in the server\n", filename);
 					}
 					else {
-						printf("Invalid command. Please type again!\n");
+						printf("File %s exists in the server\n", filename);
+
+						// now we receive data for file from server
+						string s = toString(filename);
+						FILE* fout = fopen(("output/" + s).c_str(), "wb");
+						// receive file size
+						long long file_size;
+						client.Receive((char*)&file_size, sizeof(long long), 0);
+						printf("File size is %lld\n", file_size);
+						// receive data
+						memset(buffer, 0, BUFLEN);
+						int bytes_written = 0;
+						while (bytes_written < file_size) {
+							int bytes_received = client.Receive((char*)buffer, BUFLEN, 0);
+							printf("Received %d bytes\n", bytes_received);
+							fwrite(buffer, 1, bytes_received, fout);
+							bytes_written += bytes_received;
+						}
+						printf("Finish writing file\n");
+						fflush(stdout);
+						fclose(fout);
 					}
-					break;
+
+					delete[] exist;
 				}
-				if (ch == -1) { // ctrl + c
-					int sz_quit = strlen("QUIT");
-					client.Send((char*)&sz_quit, sizeof(int), 0);
-					client.Send((char*)("QUIT"), sz_quit + 1, 0);
-					running = false;
-					fclose(fptr);
-					break;
+				int len_sendall = strlen("SEND_ALL");
+				client.Send((char*)&len_sendall, sizeof(int), 0);
+				client.Send((char*)("SEND_ALL"), len_sendall, 0);
+				delete[] filename;
+
+				if (!have_new_files) {
+					printf("All files are already downloaded\n");
+					fflush(stdout);
 				}
-				if (ch != EOF) msg[index++] = ch;
+			}
+			// invalid command
+			else {
+				printf("Invalid command!\n");
+				int len_invalid = strlen("INVALID_CMD");
+				client.Send((char*)&len_invalid, sizeof(int), 0);
+				client.Send((char*)("INVALID_CMD"), len_invalid, 0);
+				// then go back and wait for user input again
 			}
 		}
+
+		fclose(fin);
 	}
 	else {
 		printf("Cannot connect to server");
