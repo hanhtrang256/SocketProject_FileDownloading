@@ -105,6 +105,22 @@ int main()
 		/* CTRL+C, client_socket will send the message "QUIT" to break the */
 		/* connection.                                                     */
 		/* *************************************************************** */
+
+		/*FILE* f_out = fopen("output/trc.jpg", "wb");
+
+		int file_size;
+		client.Receive((char*)&file_size, sizeof(int), 0);
+
+		char* buf = new char[file_size + 1];
+		int bytes_written = 0;
+		while (bytes_written < file_size) {
+			int bytes_received = client.Receive((char*)buf, file_size, 0);
+			printf("received %d bytes\n", bytes_received);
+			fwrite(buf, 1, bytes_received, f_out);
+			bytes_written += bytes_received;
+		}
+		delete[] buf;*/
+
 		// Set up the SIGINT handler
 		signal(SIGINT, handle_sigint);
 		FILE* fin = fopen("input.txt", "r");
@@ -185,21 +201,13 @@ int main()
 						// receiving data from server
 						memset(buffer, 0, BUFLEN);
 
-						// Loading the progress bar first
-						printf("Installing file %s: [", filename);
-						fflush(stdout);
 						int len_bar = 60;
 						int index_bar = 0;
-						for (int i = 0; i < len_bar; ++i) {
-							printf("-");
-							fflush(stdout);
-						}
-						printf("]");
-
-						// bring the cursor to the starting point of loading bar
-						printf("\r"); fflush(stdout);
-						printf("Installing file %s: [", filename); fflush(stdout);
-
+						
+						// format of progress bar: Installing file: *****[20%]
+						char progress_bar[123] = "Installing file: ";
+						int index = 17;
+						progress_bar[index] = '\0';
 						
 						long long bytes_written = 0;
 						while (bytes_written < file_size) {
@@ -210,9 +218,13 @@ int main()
 							float progress = (float)(bytes_written) / (float)(file_size);
 							int pos = len_bar * progress;
 							while (index_bar < pos) {
-								printf("*");
+								//printf("*");
+								progress_bar[index] = '*';
+								++index;
+								progress_bar[index] = '\0';
+								printf("\r"); fflush(stdout);
+								printf("%s [%d%c]", progress_bar, (int)(progress*100), '%');
 								fflush(stdout);
-								Sleep(1);
 								++index_bar;
 							}
 						}
