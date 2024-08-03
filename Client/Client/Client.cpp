@@ -201,7 +201,7 @@ int main()
 						// receiving data from server
 						memset(buffer, 0, BUFLEN);
 
-						int len_bar = 60;
+						int len_bar = 32;
 						int index_bar = 0;
 						
 						// format of progress bar: Installing file: *****[20%]
