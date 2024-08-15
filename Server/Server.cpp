@@ -149,7 +149,7 @@ int main()
 
 			// user wants to disconnect
 			if (strcmp(usercmd, "QUIT") == 0) {
-				printf("[COMMAND RECEIVED] Client command is %s\n", usercmd);
+				printf("\n[COMMAND RECEIVED] Client command is %s\n", usercmd);
 				fflush(stdout);
 				printf("Client %s wants to close connection\n", nickname);
 				communicate = false;
@@ -158,7 +158,7 @@ int main()
 				//printf("Client types an invalid command\n");
 			}
 			else if (strcmp(usercmd, "INSTALL") == 0) {
-				printf("[COMMAND RECEIVED] Client command is %s\n", usercmd);
+				printf("\n[COMMAND RECEIVED] Client command is %s\n", usercmd);
 				fflush(stdout);
 				// receving user's new files or SEND_ALL protocol to stop
 				bool sending = true;
