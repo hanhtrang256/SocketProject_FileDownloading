@@ -1,0 +1,10 @@
+﻿  Client.cpp
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(41,12): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(77,15): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(136,18): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(145,21): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(155,23): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(204,16): warning C4244: 'initializing': conversion from 'float' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(223,21): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\Client.cpp(236,21): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+  Client.vcxproj -> D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Client\x64\Debug\Client.exe
