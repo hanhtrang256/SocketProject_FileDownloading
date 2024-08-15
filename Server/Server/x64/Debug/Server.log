@@ -1,0 +1,8 @@
+﻿  Server.cpp
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\Server.cpp(26,12): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\Server.cpp(112,21): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\Server.cpp(129,19): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\Server.cpp(191,25): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\Server.cpp(199,22): warning C4267: 'initializing': conversion from 'size_t' to 'int', possible loss of data
+D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\Server.cpp(222,34): warning C4267: '=': conversion from 'size_t' to 'int', possible loss of data
+  Server.vcxproj -> D:\FileTransfer_C++\SocketProject_DownloadFile_Part 1\Server\x64\Debug\Server.exe
